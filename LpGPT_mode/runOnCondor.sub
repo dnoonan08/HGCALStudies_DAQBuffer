@@ -2,6 +2,7 @@ universe = vanilla
 Executable = runOnCondor.sh
 should_transfer_files = YES
 WhenToTransferOutput  = ON_EXIT
+Transfer_Input_Files = simBuffer_withTriggerRules_2in8.py, runOnCondor.sh
 notification = never
 Output = logs/condorRun_$(cluster)_$(process).stdout
 Error = logs/condorRun_$(cluster)_$(process).stderr

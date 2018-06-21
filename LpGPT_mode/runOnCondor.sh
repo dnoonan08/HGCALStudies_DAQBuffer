@@ -8,8 +8,6 @@ else
     echo ${_CONDOR_SCRATCH_DIR}
     echo "xrdcp root://cmseos.fnal.gov//store/user/dnoonan/HGCAL_Concentrator/pdDF_Subdet3_Layer6to8_MB2_FineWafers.pkl ."
 	xrdcp root://cmseos.fnal.gov//store/user/dnoonan/HGCAL_Concentrator/pdDF_Subdet3_Layer6to8_MB2_FineWafers.pkl .
-    echo "xrdcp root://cmseos.fnal.gov//store/user/dnoonan/HGCAL_Concentrator/simBuffer_withTriggerRules_2in8.py ."
-    xrdcp root://cmseos.fnal.gov//store/user/dnoonan/HGCAL_Concentrator/simBuffer_withTriggerRules_2in8.py .
 
     source /cvmfs/cms.cern.ch/cmsset_default.sh
 	cd /cvmfs/cms.cern.ch/slc6_amd64_gcc630/cms/cmssw/CMSSW_9_4_2/
