@@ -19,6 +19,9 @@ parser.add_option("--freq", dest="TriggerFrequency",default=42.5,type="float",
 parser.add_option("-N", dest="N",default=40e6,type="int",
 		  help="Number of events to run on" )
 
+parser.add_option("-f",dest="inputFile",default="../Pandas_DF/pdDF_Subdet3_Layer6to8_MB2_FineWafers.pkl",
+                  help="Input file (.pkl with dataframe)")
+
 (options, args) = parser.parse_args()
 
 smallestFirst = options.smallestFirst
@@ -26,9 +29,13 @@ applyTriggerRules = options.applyTriggerRules
 
 TriggerRate = 1./options.TriggerFrequency
 
-df = pd.read_pickle("pdDF_Layer8_MB2.pkl")
+df = pd.read_pickle(options.inputFile)
 
 events = list(df.event.unique())
+layers = list(df.layer.unique())
+
+df = df[df.layer==8]
+#df = df[df.side==1]
 
 gROOT.SetBatch(True)
 gStyle.SetOptTitle(0)
@@ -114,10 +121,17 @@ for i_BX in xrange(N):
                     DAQheaderbits += 80 #bitmap
                     DAQheaderbits += 32 #trailer
                     
-                    randEvent = list(df[df.event==random.choice(events)].bits)                    
+                    
+                    # select a random motherboard (random event, side)
+                    
+                    randEvent = df[df.event==random.choice(events)]
+                    randEvent = randEvent[randEvent.side==random.choice([-1,1])]
+#                    randEvent = randEvent[randEvent.layer==random.choice(layers)]
+                    
+                    randEventBits = list(randEvent.bits)
                     for i_ROC in range(nHGROCs):
                         
-                        DAQbuffer[i_ROC].append(randEvent[i_ROC] + DAQheaderbits)
+                        DAQbuffer[i_ROC].append(randEventBits[i_ROC] + DAQheaderbits)
 
                     
     for i_ROC in range(nHGROCs):

@@ -16,10 +16,12 @@ tdcOnsetfC_ = 60.
 
 from optparse import OptionParser
 parser = OptionParser()
-parser.add_option("--coarseWafer", "--coarse", dest="useFineWafer", default=False,action="store_true",
+parser.add_option("--coarseWafer", "--coarse", dest="useFineWafer", default=True,action="store_false",
 		  help="Use outer detector (coarse) wafers" )
-parser.add_option("--layer", dest="Layer", default=8,type="int",
-		  help="Layer to look at (default is 8)" )
+parser.add_option("--minlayer", dest="MinLayer", default=6,type="int",
+		  help="Lowest Layer to look at (default is 6)" )
+parser.add_option("--maxlayer", dest="MaxLayer", default=8,type="int",
+		  help="Highest Layer to look at (default is 6)" )
 parser.add_option("--subdet", dest="Subdet", default=3,type="int",
 		  help="Subdet to look at (default is 3)" )
 parser.add_option("--mbType", dest="MBType", default=2,type="int",
@@ -71,14 +73,15 @@ for iFile in xrange(1,maxFiles):
                            }
                           )
     
-        df = df[df.subdet==options.Subdet][df.layer==options.Layer][df.wafertype==waferType][df.side==1]
+        df = df[df.subdet==options.Subdet][df.layer>=options.MinLayer][df.layer<=options.MaxLayer][df.wafertype==waferType]
 #        chargeConverter = "hgcdigi_isadc ? hgcdigi_data*%f : %f + hgcdigi_data * %f"%(adcLSB_, (int(tdcOnsetfC_/adcLSB_) + 1.0)*adcLSB_, tdcLSB_)
     
         df["motherboard"] = df['wafer'].map(waferMBmap)
-        if options.useFineWafer:
-            df = df[df.motherboard%4==2]
-        else:
-            df = df[df.motherboard%11==2]
+        df = df[df.motherboard==2]
+        #if options.useFineWafer:
+        #    df = df[df.motherboard==2]
+        #else:
+        #    df = df[df.motherboard==2]
 
         df["charge"] = np.where(df.isadc==1,df.data*adcLSB_, (int(tdcOnsetfC_/adcLSB_) + 1.0)*adcLSB_ + df.data*tdcLSB_)
         
@@ -88,7 +91,7 @@ for iFile in xrange(1,maxFiles):
 
         #print df
 
-        group = df.ix[:,['motherboard','wafer','HGROC','bits']].groupby(['motherboard','wafer','HGROC'],as_index=False)
+        group = df.ix[:,['side','layer','motherboard','wafer','HGROC','bits']].groupby(['side','layer','motherboard','wafer','HGROC'],as_index=False)
 
         event = group.sum()
         event["Ncells"] = group["bits"].count().bits
@@ -105,9 +108,9 @@ for iFile in xrange(1,maxFiles):
 result = pd.concat(result)
 #print result
 if options.useFineWafer:
-    outputName = "pdDF_Subdet%i_Layer%i_MB2_FineWafers.pkl"%(options.Subdet,options.Layer)
+    outputName = "pdDF_Subdet%i_Layer%ito%i_MB2_FineWafers.pkl"%(options.Subdet,options.MinLayer,options.MaxLayer)
 else:
-    outputName = "pdDF_Subdet%i_Layer%i_MB2_CoarseWafers.pkl"%(options.Subdet,options.Layer)
+    outputName = "pdDF_Subdet%i_Layer%ito%i_MB2_CoarseWafers.pkl"%(options.Subdet,options.MinLayer,options.MaxLayer)
 
 result.to_pickle(outputName)
 
