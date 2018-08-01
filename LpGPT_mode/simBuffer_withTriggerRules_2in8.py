@@ -19,6 +19,15 @@ parser.add_option("--freq", dest="TriggerFrequency",default=42.5,type="float",
 parser.add_option("-N", dest="N",default=40e6,type="int",
 		  help="Number of events to run on" )
 
+parser.add_option("--layer", dest="layer",default=8,type="int",
+		  help="Layer to run on" )
+
+parser.add_option("--rate", dest="rate",default=640,type="int",
+		  help="Readout rate, in MHz" )
+
+parser.add_option("--graphs", dest="saveGraphs",default=False,action="store_true",
+		  help="Save graphs of buffer as function of BX" )
+
 parser.add_option("-f",dest="inputFile",default="../Pandas_DF/pdDF_Subdet3_Layer6to8_MB2_FineWafers.pkl",
                   help="Input file (.pkl with dataframe)")
 
@@ -34,7 +43,7 @@ df = pd.read_pickle(options.inputFile)
 events = list(df.event.unique())
 layers = list(df.layer.unique())
 
-df = df[df.layer==8]
+df = df[df.layer==options.layer]
 #df = df[df.side==1]
 
 gROOT.SetBatch(True)
@@ -61,18 +70,23 @@ bunchStructure = [72,12,288] #39 groups fo 72 filled, 12 empty, last 288 empty a
 
 readoutBuffer = [0]*nHGROCs
 
-drainFrequency = 640
+drainFrequency = options.rate
 
-drainBitsPerBX = 8960/drainFrequency
+drainBitsPerBX = drainFrequency / 40
 
-h_bufferSize = [TH1F("h_bufferSize_%i"%i_ROC,"h_bufferSize_%i"%i_ROC,700,0,7000) for i_ROC in range(nHGROCs)]
-h_bufferEvents = [TH1F("h_bufferEvents_%i"%i_ROC,"h_bufferEvents_%i"%i_ROC,20,0,20) for i_ROC in range(nHGROCs)]
+print drainBitsPerBX
 
+h_bufferSize = [TH1F("h_bufferSize_%i"%i_ROC,"h_bufferSize_%i"%i_ROC,1500,0,30000) for i_ROC in range(nHGROCs)]
+h_bufferEvents = [TH1F("h_bufferEvents_%i"%i_ROC,"h_bufferEvents_%i"%i_ROC,60,0,60) for i_ROC in range(nHGROCs)]
 
-
-x = array.array('i')
-bufferBits = array.array('i')
-bufferEvents = array.array('i')
+if options.saveGraphs:
+    x = []
+    bufferBits = []
+    bufferEvents = []
+    for i in range(nHGROCs):
+        x.append(array.array('i'))
+        bufferBits.append(array.array('i'))
+        bufferEvents.append(array.array('i'))
 
 lastTenL1As = [-999]*10
 
@@ -88,6 +102,11 @@ for i_BX in xrange(N):
             readoutBuffer[_i] -= drainBitsPerBX
         else:
             readoutBuffer[_i] = 0
+            if options.saveGraphs:
+                if len(DAQbuffer[_i])==0:
+                    x[_i].append(i_BX)
+                    bufferBits[_i].append(0)
+                    bufferEvents[_i].append(0)
 
 
     for i_ROC in range(nHGROCs):
@@ -97,10 +116,9 @@ for i_BX in xrange(N):
 
             readoutBuffer[i_ROC] = DAQbuffer[i_ROC][0]
             DAQbuffer[i_ROC] = DAQbuffer[i_ROC][1:]
+            
 
-
-
-
+#    print readoutBuffer[0], DAQbuffer[0]
     orbitBXnumber = i_BX%3456
     if orbitBXnumber < (3564-288):   #not in abort gap
         if orbitBXnumber%84 < 72:    # 72 filled, 12 empty pattern
@@ -113,10 +131,6 @@ for i_BX in xrange(N):
 
                     countTriggers += 1
 
-                    # x.append(i_BX-1)
-                    # bufferBits.append(sum(DAQbuffer))
-                    # bufferEvents.append(len(DAQbuffer))
-                    
                     DAQheaderbits = 24 #header
                     DAQheaderbits += 80 #bitmap
                     DAQheaderbits += 32 #trailer
@@ -128,10 +142,22 @@ for i_BX in xrange(N):
                     randEvent = randEvent[randEvent.side==random.choice([-1,1])]
 #                    randEvent = randEvent[randEvent.layer==random.choice(layers)]
                     
+
                     randEventBits = list(randEvent.bits)
+
                     for i_ROC in range(nHGROCs):
-                        
+                        if options.saveGraphs:
+                            x[i_ROC].append(i_BX-1)
+                            bufferBits[i_ROC].append(sum(DAQbuffer[i_ROC]) + readoutBuffer[i_ROC] )
+                            bufferEvents[i_ROC].append(len(DAQbuffer[i_ROC]) + 1)
+                                
                         DAQbuffer[i_ROC].append(randEventBits[i_ROC] + DAQheaderbits)
+
+                        if options.saveGraphs:
+                            x[i_ROC].append(i_BX)
+                            bufferBits[i_ROC].append(sum(DAQbuffer[i_ROC]) + readoutBuffer[i_ROC] )
+                            bufferEvents[i_ROC].append(len(DAQbuffer[i_ROC]) + 1)
+                    
 
                     
     for i_ROC in range(nHGROCs):
@@ -139,30 +165,26 @@ for i_BX in xrange(N):
         h_bufferEvents[i_ROC].Fill(len(DAQbuffer[i_ROC]))
 
 
+grBits = []
+grEvts = []
 
-# grBits = TGraph(len(x),x,bufferBits)
+if options.saveGraphs:
+    for i_ROC in range(nHGROCs):
+    #    print i_ROC, len(x[i_ROC]), len(bufferBits[i_ROC]), x[i_ROC] ,bufferBits[i_ROC]
+        grBits.append(TGraph(len(x[i_ROC]),x[i_ROC],bufferBits[i_ROC]))
+        grEvts.append(TGraph(len(x[i_ROC]),x[i_ROC],bufferEvents[i_ROC]))
+        
+        grBits[i_ROC].GetXaxis().SetTitle("BX")
+        grEvts[i_ROC].GetXaxis().SetTitle("BX")
+        
+        grBits[i_ROC].GetYaxis().SetTitle("Bits in Buffer")
+        grEvts[i_ROC].GetYaxis().SetTitle("HGROCs in Buffer")
+        
+        grBits[i_ROC].SetNameTitle("Bits_%i"%i_ROC,"Bits_%i"%i_ROC)
+        grEvts[i_ROC].SetNameTitle("HGROCs_%i"%i_ROC,"HGROCs_%i"%i_ROC)
+        
 
-# grEvts = TGraph(len(x),x,bufferEvents)
-
-
-
-# grBits.GetXaxis().SetTitle("BX")
-# grEvts.GetXaxis().SetTitle("BX")
-
-# grBits.GetYaxis().SetTitle("Bits in Buffer")
-# grEvts.GetYaxis().SetTitle("HGROCs in Buffer")
-
-# grBits.SetNameTitle("Bits","Bits")
-# grEvts.SetNameTitle("HGROCs","HGROCs")
-
-# c = TCanvas("c","c",1200,600)
-# grBits.Draw("alp")
-# c.SaveAs("BitsInBuffer.png")
-
-# grEvts.Draw("alp")
-# c.SaveAs("HGROCsInBuffer.png")
-
-outputName = "Buffers_byHGROC.root"
+outputName = "Buffers_byHGROC_Layer%s_Readout%s.root"%(options.layer, options.rate)
 if applyTriggerRules:
     outputName = outputName.replace(".root","_withL1Rules_2in8.root")
 if smallestFirst:
@@ -172,7 +194,10 @@ outFile = TFile(outputName,"recreate")
 for i_ROC in range(nHGROCs):
     h_bufferSize[i_ROC].Write()
     h_bufferEvents[i_ROC].Write()
+    if options.saveGraphs:
+        grBits[i_ROC].Write()
+        grEvts[i_ROC].Write()
 
 outFile.Close()
 
-print countTriggers
+print "Effective L1A rate : %.1f kHZ"%(40000.*countTriggers/N)
