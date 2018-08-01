@@ -19,7 +19,7 @@ else
 	cd -
 fi
 
-python simBuffer_withTriggerRules_2in8_320.py -N 40000000 -f pdDF_Subdet3_Layer1to28_MB2_FineWafers.pkl --layer ${layer} --rate ${rate}
+python simBuffer_withTriggerRules_2in8.py -N 40000000 -f pdDF_Subdet3_Layer1to28_MB2_FineWafers.pkl --layer ${layer} --rate ${rate}
 
 #rm simBuffer_withTriggerRules_2in8.py
 rm pdDF_Subdet3_Layer1to28_MB2_FineWafers.pkl

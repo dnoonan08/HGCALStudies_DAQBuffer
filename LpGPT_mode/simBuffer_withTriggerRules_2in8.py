@@ -50,6 +50,7 @@ gROOT.SetBatch(True)
 gStyle.SetOptTitle(0)
 gStyle.SetOptStat(0)
 
+#counter just to verify effective trigger rate
 countTriggers = 0
 
 rand = TRandom3(0)
@@ -66,6 +67,7 @@ nHGROCs = 12
 
 DAQbuffer = [ [] for i in range(nHGROCs)]
 
+#LHC bunch structure, for determining when an L1A can be issued
 bunchStructure = [72,12,288] #39 groups fo 72 filled, 12 empty, last 288 empty as abort gap
 
 readoutBuffer = [0]*nHGROCs
@@ -76,9 +78,11 @@ drainBitsPerBX = drainFrequency / 40
 
 print drainBitsPerBX
 
+#make histograms to store the buffer sizes
 h_bufferSize = [TH1F("h_bufferSize_%i"%i_ROC,"h_bufferSize_%i"%i_ROC,1500,0,30000) for i_ROC in range(nHGROCs)]
 h_bufferEvents = [TH1F("h_bufferEvents_%i"%i_ROC,"h_bufferEvents_%i"%i_ROC,60,0,60) for i_ROC in range(nHGROCs)]
 
+#make graphs to save buffer size vs event
 if options.saveGraphs:
     x = []
     bufferBits = []
@@ -88,6 +92,7 @@ if options.saveGraphs:
         bufferBits.append(array.array('i'))
         bufferEvents.append(array.array('i'))
 
+
 lastTenL1As = [-999]*10
 
 n_Log = N/40
@@ -96,7 +101,8 @@ for i_BX in xrange(N):
     # if i_BX%n_Log==0:
     #     print i_BX
     
-    
+
+    #drain buffers
     for _i in range(nHGROCs):
         if readoutBuffer[_i]>drainBitsPerBX:
             readoutBuffer[_i] -= drainBitsPerBX
@@ -109,6 +115,7 @@ for i_BX in xrange(N):
                     bufferEvents[_i].append(0)
 
 
+    #if readout buffer is empty, grab next event from buffer list (either sorted or not)
     for i_ROC in range(nHGROCs):
         if readoutBuffer[i_ROC]==0 and len(DAQbuffer[i_ROC])>0:
             if smallestFirst:
@@ -120,9 +127,11 @@ for i_BX in xrange(N):
 
 #    print readoutBuffer[0], DAQbuffer[0]
     orbitBXnumber = i_BX%3456
+
+    #decide if we are in a good spot to issue a trigger
     if orbitBXnumber < (3564-288):   #not in abort gap
         if orbitBXnumber%84 < 72:    # 72 filled, 12 empty pattern
-            if rand.Uniform()<TriggerRate:
+            if rand.Uniform()<TriggerRate:  #random number to get L1A
                 if i_BX-lastTenL1As[-2]>=8 or not applyTriggerRules:
                     lastTenL1As.append(i_BX)
 
